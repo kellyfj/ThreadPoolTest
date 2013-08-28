@@ -4,6 +4,8 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.Collections;
+import java.util.HashSet;
 
 /**
  * Generic Resource Pool Implementation
@@ -24,7 +26,7 @@ public class ResourcePool<T> {
 		{
 			commonLock = new Object();
 			resourcesIdle  = new LinkedBlockingQueue < T >();
-			resourcesInUse = new ConcurrentSkipListSet < T >();
+			resourcesInUse = Collections.synchronizedSet(new HashSet<T>());
 		}
 		
 		public void open()
@@ -116,7 +118,7 @@ public class ResourcePool<T> {
 			synchronized(commonLock)
 			{
 				T resource = resourcesIdle.poll();
-				resourcesInUse.add(resource);
+				if(resource !=null) resourcesInUse.add(resource);
 				return resource;
 			}
 		}
