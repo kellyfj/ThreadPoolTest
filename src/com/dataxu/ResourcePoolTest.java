@@ -49,7 +49,7 @@ public class ResourcePoolTest {
 		rp.remove(s);
 		rp.close();
 	}
-	
+
 	@Test
 	public void testAddMultipleTimes() {
 		ResourcePool<String> rp = new ResourcePool<String>();
@@ -60,7 +60,7 @@ public class ResourcePoolTest {
 		assertTrue(s.equals(rp.acquire()));
 
 	}
-	
+
 	@Test
 	public void testExhaustQueue() {
 		ResourcePool<String> rp = new ResourcePool<String>();
@@ -69,12 +69,12 @@ public class ResourcePoolTest {
 		assertTrue(rp.add(s));
 		assertTrue(s.equals(rp.acquire()));
 		String reply = rp.acquire(1000, TimeUnit.MILLISECONDS);
-		assertTrue(reply==null);
+		assertTrue(reply == null);
 		rp.release(s);
 		assertTrue(rp.remove(s));
 		rp.close();
 	}
-	
+
 	@Test
 	public void testAddMultiple() {
 		ResourcePool<String> rp = new ResourcePool<String>();
@@ -111,7 +111,7 @@ public class ResourcePoolTest {
 		assertTrue(s3.equals(rp.acquire()));
 		rp.closeNow();
 	}
-	
+
 	@Test
 	public void testAddAndEntireLifeCycleWithCloseNow() {
 		ResourcePool<String> rp = new ResourcePool<String>();
@@ -123,7 +123,7 @@ public class ResourcePoolTest {
 		rp.remove(s);
 		rp.closeNow();
 	}
-	
+
 	@Test
 	public void testAddAndEntireLifeCycleWithCloseNow_LeavingResourcesHanging() {
 		ResourcePool<String> rp = new ResourcePool<String>();
@@ -133,20 +133,20 @@ public class ResourcePoolTest {
 		assertTrue(s.equals(rp.acquire()));
 		rp.closeNow();
 	}
-	
+
 	@Test
 	public void testAcquireLongTimeUnit() {
 		ResourcePool<String> rp = new ResourcePool<String>();
 		rp.open();
 		String s = "Hello World!";
 		rp.add(s);
-		assertTrue(s.equals(rp.acquire(1000,TimeUnit.MILLISECONDS)));
+		assertTrue(s.equals(rp.acquire(1000, TimeUnit.MILLISECONDS)));
 		rp.release(s);
 		rp.remove(s);
 		rp.close();
 	}
 
-	@Test (expected = IllegalStateException.class)
+	@Test(expected = IllegalStateException.class)
 	public void testRemoveFailure_ResourceStillInUse() {
 		ResourcePool<String> rp = new ResourcePool<String>();
 		rp.open();
