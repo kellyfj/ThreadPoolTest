@@ -1,6 +1,8 @@
 package com.dataxu;
 
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -10,17 +12,19 @@ import java.util.concurrent.LinkedBlockingQueue;
  *
  * @param <T>
  */
-public class ResoucePool<T> {
+public class ResourcePool<T> {
 
 		private boolean open=false;
-		private BlockingQueue < T > resourcesInUse;
 		private BlockingQueue < T > resourcesIdle;
+		private Set < T > resourcesInUse;
+
 		private Object commonLock;
 		
-		public void ResourcePool()
+		public ResourcePool()
 		{
-			resourcesInUse = new LinkedBlockingQueue < T >();
+			commonLock = new Object();
 			resourcesIdle  = new LinkedBlockingQueue < T >();
+			resourcesInUse = new ConcurrentSkipListSet < T >();
 		}
 		
 		public void open()
@@ -69,8 +73,16 @@ public class ResoucePool<T> {
 			if(resourcesInUse.contains(r))
 				throw new IllegalStateException("Cannot add resource to Pool as it is part of the pool already and already in use");
 			
-			//Returns true if the underlying collection changed as a result of the call
-			return resourcesIdle.add(r);
+			boolean alreadyPresent = resourcesIdle.contains(r);
+			
+			if(!alreadyPresent)	{
+				resourcesIdle.add(r);
+				return true;
+			}
+			else {
+				return false;
+			}
+							
 		}
 		
 		public boolean remove(T r)
@@ -78,17 +90,20 @@ public class ResoucePool<T> {
 			if(resourcesInUse.contains(r))
 				throw new IllegalStateException("Cannot remove resource from Pool as it is  already in use");
 
-			//true if an element was removed as a result of this call
-			return resourcesIdle.remove(r);
+			boolean returnValue = resourcesIdle.contains(r);
+			
+			resourcesIdle.remove(r);
+			
+			return returnValue;
 		}
 		
 		public boolean removeNow(T r)
 		{
-			//true if an element was removed as a result of this call
 			synchronized(commonLock)
 			{
 				boolean b1 = resourcesIdle.remove(r);
 				boolean b2 = resourcesInUse.remove(r);
+				//true if an element was removed as a result of this call
 				return b1 || b2;
 			}
 		}
@@ -122,7 +137,7 @@ public class ResoucePool<T> {
 				synchronized(commonLock)
 				{
 					T resource =  resourcesIdle.poll(timeout, unit);
-					resourcesInUse.add(resource);
+					if(resource !=null) resourcesInUse.add(resource);
 					return resource;
 				}
 			} catch (InterruptedException e) {
