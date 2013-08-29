@@ -3,6 +3,9 @@ package com.dataxu;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.Collections;
 import java.util.HashSet;
 
@@ -19,10 +22,13 @@ public class ResourcePool<T> {
 	private BlockingQueue<T> resourcesIdle;
 	private Set<T> resourcesInUse;
 
-	private Object commonLock;
+	private Object syncPoint;
+	
+	final private Lock lock = new ReentrantLock();
+	final private Condition resourcesAvailable = lock.newCondition(); 
 
 	public ResourcePool() {
-		commonLock = new Object();
+		syncPoint = new Object();
 		resourcesIdle = new LinkedBlockingQueue<T>();
 		resourcesInUse = Collections.synchronizedSet(new HashSet<T>());
 	}
@@ -58,7 +64,7 @@ public class ResourcePool<T> {
 			}
 		}
 
-		synchronized (commonLock) {
+		synchronized (syncPoint) {
 			resourcesInUse.clear();
 			resourcesIdle.clear();
 		}
@@ -69,7 +75,7 @@ public class ResourcePool<T> {
 	 */
 	public void closeNow() {
 		open = false;
-		synchronized (commonLock) {
+		synchronized (syncPoint) {
 			resourcesInUse.clear();
 			resourcesIdle.clear();
 		}
@@ -89,7 +95,13 @@ public class ResourcePool<T> {
 
 		if (!alreadyPresent) {
 			resourcesIdle.add(r);
-			return true;
+			lock.lock();
+			try{
+				resourcesAvailable.signal();
+			} finally{ 
+				lock.unlock();
+			}
+  		    return true;
 		} else {
 			return false;
 		}
@@ -113,7 +125,7 @@ public class ResourcePool<T> {
 	 * @return
 	 */
 	public boolean removeNow(T r) {
-		synchronized (commonLock) {
+		synchronized (syncPoint) {
 			boolean b1 = resourcesIdle.remove(r);
 			boolean b2 = resourcesInUse.remove(r);
 			// true if an element was removed as a result of this call
@@ -128,12 +140,24 @@ public class ResourcePool<T> {
 	public T acquire() {
 		if (!open)
 			throw new IllegalStateException("Unable to acquire resource as pool is closed");
-
-		synchronized (commonLock) {
-			T resource = resourcesIdle.poll();
-			if (resource != null)
-				resourcesInUse.add(resource);
-			return resource;
+		
+		lock.lock();		
+		try{
+			synchronized (syncPoint) {
+				if(resourcesIdle.size()==0)
+					resourcesAvailable.await();
+				
+				T resource = resourcesIdle.poll();
+				if (resource != null)
+					resourcesInUse.add(resource);
+				return resource;
+			}
+		} catch (InterruptedException e) {
+			//If thread interrupted return null
+			return null;
+		}
+		finally{
+			lock.unlock();
 		}
 	}
 
@@ -148,7 +172,7 @@ public class ResourcePool<T> {
 			throw new IllegalStateException("Unable to acquire resource as pool is closed");
 
 		try {
-			synchronized (commonLock) {
+			synchronized (syncPoint) {
 				T resource = resourcesIdle.poll(timeout, unit);
 				if (resource != null)
 					resourcesInUse.add(resource);
@@ -172,9 +196,16 @@ public class ResourcePool<T> {
 		if (resourcesIdle.contains(resource))
 			throw new IllegalArgumentException("Cannot release resources as it is idle");
 
-		synchronized (commonLock) {
+		synchronized (syncPoint) {
 			resourcesInUse.remove(resource);
 			resourcesIdle.add(resource);
+			lock.lock();
+			try{
+				resourcesAvailable.signal();
+			}
+			finally {
+				lock.unlock();
+			}
 		}
 	}
 

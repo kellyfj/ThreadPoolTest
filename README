@@ -1,0 +1,54 @@
+
+DESIGN PROCESS & DECISIONS
+
+i. Initial Research Process
+----------------------------
+As a generic object pool is something I have used previously (esp. Database connection pool, HTTP connection pool etc)
+I figured that there was probably a pre-existing implementation somewhere as it's usually faster and less risk to use
+a pre-existing (tested!) open source package than writing your own.
+I checked out Apache Commons pool implementation
+http://commons.apache.org/proper/commons-pool/api-1.6/org/apache/commons/pool/impl/GenericObjectPool.html
+
+But it didn't have what I needed to implement the interfaces .
+I knew from my experience that java.util.concurrent could be a useful basis and so in my searching I came across
+this link which had some useful insights
+http://java.dzone.com/articles/generic-and-concurrent-object
+
+
+ii. Data Structure choice
+--------------------------
+I knew I at least needed a basic thread-safe data structure that supported push() and pop() like operations - so that meant a Queue or a List.
+java.util.concurrent provides several BlockingQueue implementations including LinkedBlockingQueue.
+I chose LinkedBlockingQueue over ArrayBlockingQueue since the Javadoc states
+"Linked queues typically have higher throughput than array-based queues but less predictable performance in most concurrent applications"
+http://docs.oracle.com/javase/7/docs/api/java/util/concurrent/LinkedBlockingQueue.html
+And I chose to prioritize throughput over predictability.
+
+In addition I needed to keep track of those resources that were loaned out of the pool - so I picked a Set.
+I chose a set because I basically want to do a number of "Is this resource in use checks" and a HashSet is a quick way to do that.
+
+Java Sets are not thread-safe by default so I used  Collections.synchronizedSet(new HashSet<T>());
+
+to make it Threadsafe. Interestingly java.util.concurrent does not have a Thread-safe Set implementation
+however there are other options outlined here
+http://stackoverflow.com/questions/6720396/different-types-of-thread-safe-sets-in-java
+
+
+iii) Synchronization
+---------------------
+So while the underlying data structures are thread-safe (by definition) these two resources
+- The list of resources available for borrowing
+- The set of resources in use
+need to be kept in sync. That is when resources are moved from one data structure to the other - it needs to be "transactional" atomic operation.
+
+To enable that I used a dummy object 
+private Object commonLock;
+to create synchronized blocks on 
+
+
+
+
+
+
+
+
