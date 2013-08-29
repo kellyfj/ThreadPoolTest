@@ -45,6 +45,13 @@ To enable that I used a dummy object
 private Object commonLock;
 to create synchronized blocks on 
 
+iv) Blocking
+------------
+Because the acquire(), remove() and close() method can block I added various Lock/Conditions to help signal those cases (rather than rely on wait()/notify())
+and I realized I had to keep a condition for each resource in use so I swapped out the Set (of resources in use) to use thread-safe ConcurrentHashMaps
+
+
+
 
 
 
