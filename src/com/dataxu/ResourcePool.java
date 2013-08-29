@@ -2,7 +2,6 @@ package com.dataxu;
 
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.Collections;
 import java.util.HashSet;
@@ -28,17 +27,27 @@ public class ResourcePool<T> {
 		resourcesInUse = Collections.synchronizedSet(new HashSet<T>());
 	}
 
+	/**
+	 * Opens the pool allowing acquisition and release of elements in the pool
+	 */
 	public void open() {
 		open = true;
 	}
 
+	/**
+	 * Indicates whether the pool is open or not
+	 * @return boolean indicating whether the pool is open or not
+	 */
 	public boolean isOpen() {
 		return open;
 	}
 
+	/**
+	 * Closes the pool. Blocks and waits for all objects in use to be released
+	 */
 	public void close() {
 		// Tag as closed first before waiting for all objects in use to be
-		// releases
+		// released
 		open = false;
 
 		while (resourcesInUse.size() > 0) {
@@ -55,6 +64,9 @@ public class ResourcePool<T> {
 		}
 	}
 
+	/**
+	 * Non-blocking call to close the pool.
+	 */
 	public void closeNow() {
 		open = false;
 		synchronized (commonLock) {
@@ -63,6 +75,11 @@ public class ResourcePool<T> {
 		}
 	}
 
+	/**
+	 * Adds a resource to the pool
+	 * @param r
+	 * @return boolean indicating whether the resource was added to the pool (true) or if the resource was already in the pool (false)
+	 */
 	public boolean add(T r) {
 		if (resourcesInUse.contains(r))
 			throw new IllegalStateException(
@@ -90,6 +107,11 @@ public class ResourcePool<T> {
 		return returnValue;
 	}
 
+	/**
+	 * Removes a resource from the pool whether the resource is in use or not.
+	 * @param r
+	 * @return
+	 */
 	public boolean removeNow(T r) {
 		synchronized (commonLock) {
 			boolean b1 = resourcesIdle.remove(r);
@@ -99,6 +121,10 @@ public class ResourcePool<T> {
 		}
 	}
 
+	/**
+	 * Borrows a resource from the pool. Blocks until resource is available
+	 * @return the resource
+	 */
 	public T acquire() {
 		if (!open)
 			throw new IllegalStateException("Unable to acquire resource as pool is closed");
@@ -112,12 +138,10 @@ public class ResourcePool<T> {
 	}
 
 	/**
-	 * Retrieves and removes the head of this queue, or returns null if this
-	 * queue is empty.
-	 * 
+	 *  Borrows a resource from the pool. Blocks for the specified time until resource is available
 	 * @param timeout
 	 * @param unit
-	 * @return
+	 * @return the resource
 	 */
 	public T acquire(long timeout, java.util.concurrent.TimeUnit unit) {
 		if (!open)
@@ -136,6 +160,11 @@ public class ResourcePool<T> {
 		}
 	}
 
+	/**
+	 * Releases the resource back to the pool
+	 * 
+	 * @param resource
+	 */
 	public void release(T resource) {
 		if (!resourcesInUse.contains(resource))
 			throw new IllegalArgumentException("Cannot release resource as it is not in use");
