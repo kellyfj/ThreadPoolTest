@@ -146,15 +146,4 @@ public class ResourcePoolTest {
 		rp.close();
 	}
 
-	@Test(expected = IllegalStateException.class)
-	public void testRemoveFailure_ResourceStillInUse() {
-		ResourcePool<String> rp = new ResourcePool<String>();
-		rp.open();
-		String s = "Hello World!";
-		rp.add(s);
-		assertTrue(s.equals(rp.acquire()));
-		rp.remove(s);
-		rp.close();
-	}
-
 }
